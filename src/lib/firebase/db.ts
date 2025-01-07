@@ -12,7 +12,8 @@ import {
     orderBy,
     increment,
     type DocumentData,
-    type QueryDocumentSnapshot 
+    type QueryDocumentSnapshot, 
+    writeBatch
   } from 'firebase/firestore';
   import { db } from './config';
   import type { 
@@ -160,7 +161,10 @@ import {
   // Sign petition
   export async function signPetition(userId: string, petitionId: string): Promise<void> {
     try {
-      // Check if user has already signed
+      // Start a batch write
+      const batch = writeBatch(db);
+  
+      // Check for existing signature
       const signatureQuery = query(
         collection(db, 'signatures'),
         where('userId', '==', userId),
@@ -173,19 +177,28 @@ import {
         throw new Error('You have already signed this petition');
       }
   
-      // Create signature document
+      // Get petition data to check if it's the petitioner's own petition
+      const petitionDoc = await getDoc(doc(db, 'petitions', petitionId));
+      if (petitionDoc.data()?.petitionerId === userId) {
+        throw new Error('You cannot sign your own petition');
+      }
+  
+      // Create signature
       const signatureRef = doc(collection(db, 'signatures'));
-      await setDoc(signatureRef, {
+      batch.set(signatureRef, {
         userId,
         petitionId,
         signedAt: new Date().toISOString()
       });
   
-      // Increment petition signature count
+      // Update petition signature count
       const petitionRef = doc(db, 'petitions', petitionId);
-      await updateDoc(petitionRef, {
+      batch.update(petitionRef, {
         signatures: increment(1)
       });
+  
+      // Commit both operations
+      await batch.commit();
     } catch (error) {
       console.error('Error signing petition:', error);
       throw error;

@@ -21,23 +21,24 @@ export function LoginForm({ redirectPath = '/petitions' }: LoginFormProps) {
     password: ''
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+// src/components/auth/LoginForm.tsx
+// Update handleSubmit to redirect admin correctly
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-
+  
     try {
-      const user = await loginUser(formData);
-      console.log("Login successful", user);
-      
-      // Wait a bit for the auth state to update
-      setTimeout(() => {
-        router.push(redirectPath);
-      }, 100);
-      
+      await loginUser(formData);
+      // Redirect admin to admin dashboard
+      if (formData.email === 'admin@petition.parliament.sr') {
+        router.push('/admin');
+      } else {
+        router.push('/petitions');
+      }
     } catch (err: any) {
-      console.error("Login error:", err);
       setError(err.message || 'Failed to login');
+    } finally {
       setLoading(false);
     }
   };
